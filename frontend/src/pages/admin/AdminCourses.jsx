@@ -72,7 +72,7 @@ function AdminCourses() {
   ).length;
 
   const draftCount = courses.filter(
-    (course) => course.status === "Draft"
+    (course) => course.status === "draft"
   ).length;
 
   const totalStudents = courses.reduce(

@@ -50,7 +50,6 @@ const validateFaculty = async (connection, facultyIds) => {
 };
 
 // GET /api/courses
-// GET /api/courses
 export const getAllCourses = async (req, res) => {
     try {
 

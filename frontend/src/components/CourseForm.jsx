@@ -2,7 +2,7 @@ import {
   Upload,
   Image as ImageIcon,
   X,
-  CirclePlus,
+  CirclePlus,CheckCircle, AlertCircle
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Quill from "quill";
@@ -18,18 +18,10 @@ const categories = [
   "Internship",
 ];
 
-// Temporary UI data. Replace this with faculty records fetched from your API.
-const facultyList = [
-  { id: 1, name: "Dr. Arun Kumar", specialization: "Ayurveda Physician" },
-  { id: 2, name: "Dr. Priya", specialization: "Panchakarma" },
-  { id: 3, name: "Dr. Rahul", specialization: "Clinical Ayurveda" },
-  { id: 4, name: "Dr. Meena", specialization: "Marma Therapy" },
-];
-
 const emptyCourse = {
   course_title: "",
   slug: "",
-  category: "Basic Course",
+  category: "",
   duration: "",
   eligibility: "",
   description: "",
@@ -64,30 +56,37 @@ export default function CourseForm({
   onCancel,
 }) {
 
+const resetForm = () => {
+    setForm({ ...emptyCourse });
+
+    setImagePreview("");
+    setImageFile(null);
+    setErrors({});
+
+    // Clear Quill description
+    if (quillRef.current) {
+        quillRef.current.setText("");
+    }
+};
+
+
+  const [facultyList, setFaculty] = useState([]);
+  useEffect(() => {
+    const token = localStorage.getItem("userToken") || sessionStorage.getItem("userToken");;
+    API.get("/users/faculty", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => setFaculty(res.data.faculty))
+      .catch(err => console.log(err));
+
+  }, []);
+
 
   const [form, setForm] = useState(() => ({
-    ...emptyCourse,
-    ...initialData,
-    course_title:
-      initialData?.course_title ?? initialData?.title ?? "",
-    fee_type: (
-      initialData?.fee_type ??
-      (initialData?.feeType === "Paid" ? "paid" : "free")
-    ).toLowerCase(),
-    status: (initialData?.status ?? "draft").toLowerCase(),
-    fee: String(initialData?.fee ?? 0),
-    start_date: toDateInput(initialData?.start_date),
-    end_date: toDateInput(initialData?.end_date),
-    assignedFaculty: Array.isArray(initialData?.assignedFaculty)
-      ? initialData.assignedFaculty.map(Number)
-      : initialData?.assignedFaculty
-        ? [Number(initialData.assignedFaculty)]
-        : [],
+    ...emptyCourse
   }));
 
-  const [imagePreview, setImagePreview] = useState(
-    initialData?.image || ""
-  );
+  const [imagePreview, setImagePreview] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const editorRef = useRef(null);
   const quillRef = useRef(null);
@@ -113,7 +112,7 @@ export default function CourseForm({
 
     quillRef.current = quill;
 
-    const initialDescription = initialData?.description || "";
+    const initialDescription =  "";
     if (initialDescription) {
       quill.clipboard.dangerouslyPasteHTML(initialDescription);
     }
@@ -137,9 +136,7 @@ export default function CourseForm({
     setForm((previous) => ({
       ...previous,
       [name]: value,
-      ...(name === "course_title" && !previous.slug
-        ? { slug: makeSlug(value) }
-        : {}),
+      
     }));
   };
 
@@ -187,7 +184,7 @@ export default function CourseForm({
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const newErrors = {};
@@ -227,15 +224,45 @@ export default function CourseForm({
       ? quillRef.current.root.innerHTML
       : form.description;
 
-    onSubmit?.({
-      ...form,
-      course_title: courseTitle,
-      slug: form.slug || makeSlug(courseTitle),
-      description,
-      fee: form.fee_type === "free" ? "0" : String(form.fee),
-      imageFile,
-      assignedFaculty: form.assignedFaculty || [],
-    });
+
+    try {
+        const token = localStorage.getItem("userToken") || sessionStorage.getItem("userToken");
+        const response = await API.post(
+          "/courses",
+          {
+            course_title:form.course_title,
+            slug:makeSlug(form.course_title),
+            category: form.category,
+            description: description,
+            duration: form.duration,
+            eligibility: form.eligibility,
+            end_date: form.end_date ?? null,
+            start_date: form.start_date ?? null,
+            fee: form.fee_type === "free" ? "0" : String(form.fee),
+            fee_type: form.fee_type,
+            image: form.image,
+            language: form.language,
+            status: form.status,
+            created_at: Date(),
+            updated_at: Date(),
+            assignedFaculty: form.assignedFaculty
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        
+        resetForm();
+
+        setToast({
+          type: "success",
+          message: "Course created successfully!"
+        });
+
+      } catch (error) {
+        console.log(error);
+        setToast({ type: "error", message: error.response?.data?.message || "Failed to create faculty." });
+      }   
+    
   };
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState(null);
@@ -435,24 +462,25 @@ export default function CourseForm({
         <div>
           <label className="form-label">Assign Faculty</label>
           <select
-            name="faculty_id"
-            value={form.assignedFaculty?.[0] ?? ""}
-            onChange={(event) => {
-              const facultyId = event.target.value;
-              setForm((previous) => ({
-                ...previous,
-                assignedFaculty: facultyId ? [Number(facultyId)] : [],
-              }));
+            value={form.assignedFaculty?.[0] || ""}
+            onChange={(e) => {
+                const value = e.target.value;
+
+                setForm((prev) => ({
+                    ...prev,
+                    assignedFaculty: value ? [Number(value)] : []
+                }));
             }}
             className="form-input"
-          >
+        >
             <option value="">Select Faculty</option>
+
             {facultyList.map((faculty) => (
-              <option key={faculty.id} value={faculty.id}>
-                {faculty.name} - {faculty.specialization}
-              </option>
+                <option key={faculty.id} value={faculty.id}>
+                    {faculty.name}
+                </option>
             ))}
-          </select>
+        </select>
         </div>
       </section>
 

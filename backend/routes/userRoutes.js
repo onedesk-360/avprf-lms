@@ -6,7 +6,8 @@ import {
     createFaculty,
     getAllFaculty,
     updateFaculty,
-    deleteFaculty
+    deleteFaculty,
+    getCourseCount
 
  } from "../controllers/userController.js";
 import { verifyUserToken, authorizeRoles } from "../middleware/userAuthMiddleware.js";
@@ -20,5 +21,6 @@ router.post("/faculty", verifyUserToken, authorizeRoles("admin"), createFaculty)
 router.get("/faculty",verifyUserToken,authorizeRoles("admin"),getAllFaculty);
 router.put("/faculty/:id",verifyUserToken,authorizeRoles("admin"),updateFaculty);
 router.delete( "/faculty/:id", verifyUserToken, authorizeRoles("admin"), deleteFaculty );
+router.get( "/faculty/:id", verifyUserToken, authorizeRoles("admin"), getCourseCount );
 
 export default router;
